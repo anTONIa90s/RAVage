@@ -25,8 +25,7 @@ in den Artifacts des letzten Workflow-Laufs):
 
 | OS | Was du bekommst | Hinweise |
 |----|-----------------|----------|
-| Windows x86_64 | `ravage-windows-x86_64.zip` mit `ravage.exe` + `ravage-cli.exe` | `ravage.exe` doppelklicken |
-| Windows ARM64 | `ravage-windows-arm64.zip` mit `ravage.exe` + `ravage-cli.exe` | Surface Pro, Snapdragon PCs |
+| Windows x86_64 | `ravage-windows.zip` mit `ravage.exe` + `ravage-cli.exe` | `ravage.exe` doppelklicken |
 | macOS (Apple Silicon) | `ravage-macos-arm64.dmg` mit `ravage.app` + `ravage-cli` | nicht signiert, Rechtsklick → Öffnen |
 | macOS (Intel) | `ravage-macos-x86_64.dmg` mit `ravage.app` + `ravage-cli` | gleiches, für ältere Macs |
 | Linux x86_64 | `ravage-linux-x86_64.tar.gz` mit `ravage` + `ravage-cli` | bei Bedarf `chmod +x` |

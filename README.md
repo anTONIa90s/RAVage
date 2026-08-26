@@ -23,8 +23,7 @@ artifacts of the last workflow run):
 
 | OS | What you get | Notes |
 |----|--------------|-------|
-| Windows x86_64 | `ravage-windows-x86_64.zip` with `ravage.exe` + `ravage-cli.exe` | double-click `ravage.exe` |
-| Windows ARM64 | `ravage-windows-arm64.zip` with `ravage.exe` + `ravage-cli.exe` | Surface Pro, Snapdragon PCs |
+| Windows x86_64 | `ravage-windows.zip` with `ravage.exe` + `ravage-cli.exe` | double-click `ravage.exe` |
 | macOS (Apple Silicon) | `ravage-macos-arm64.dmg` with `ravage.app` + `ravage-cli` | unsigned, right-click → Open |
 | macOS (Intel) | `ravage-macos-x86_64.dmg` with `ravage.app` + `ravage-cli` | same, for older Macs |
 | Linux x86_64 | `ravage-linux-x86_64.tar.gz` with `ravage` + `ravage-cli` | `chmod +x` if needed |

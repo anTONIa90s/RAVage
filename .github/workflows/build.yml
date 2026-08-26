@@ -27,11 +27,7 @@ jobs:
         include:
           # --- windows ---
           - os: windows-latest
-            artifact: ravage-windows-x86_64
-            arch: x86_64
-          - os: windows-11-arm
-            artifact: ravage-windows-arm64
-            arch: arm64
+            artifact: ravage-windows
           # --- linux ---
           - os: ubuntu-latest
             artifact: ravage-linux-x86_64
@@ -106,7 +102,7 @@ jobs:
           cd dist
           ARCH="${{ matrix.arch }}"
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "Compress-Archive -Path ravage.exe, ravage-cli.exe -DestinationPath ravage-windows-${ARCH}.zip -Force"
+            powershell -Command "Compress-Archive -Path ravage.exe, ravage-cli.exe -DestinationPath ravage-windows.zip -Force"
           elif [ "$RUNNER_OS" = "macOS" ]; then
             DMG_NAME="ravage-macos-${ARCH}.dmg"
             TAR_NAME="ravage-macos-${ARCH}.tar.gz"
@@ -135,8 +131,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/ravage-windows-x86_64.zip
-            dist/ravage-windows-arm64.zip
+            dist/ravage-windows.zip
             dist/ravage-macos-x86_64.dmg
             dist/ravage-macos-x86_64.tar.gz
             dist/ravage-macos-arm64.dmg
