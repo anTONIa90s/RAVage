@@ -42,6 +42,7 @@ class RavGui:
         self.var_quality = tk.StringVar(value=QUALITIES[1][0])
         self.var_sound = tk.StringVar(value=SOUNDS[0][0])
         self.var_key8 = tk.StringVar(value=ravcrypto.KEY8.decode())
+        self.var_variant = tk.StringVar(value="standard (CommonI2)")
         self.auto_out = None
 
         self._build()
@@ -98,11 +99,18 @@ class RavGui:
 
         row4 = tk.Frame(main)
         row4.pack(fill="x", pady=(8, 0))
-        tk.Label(row4, text="pen key:").pack(side="left")
-        self.ent_key8 = tk.Entry(row4, textvariable=self.var_key8, width=12)
-        self.ent_key8.pack(side="left", padx=6)
-        tk.Label(row4, text="(CommonI2 default, some pens use CommonID)", fg="#555555").pack(side="left")
-        # hint: decrypt a stock .rav with cli to see your pen's key: python rav_cli.py decrypt file.rav
+        tk.Label(row4, text="variant:").pack(side="left")
+        self.cmb_variant = ttk.Combobox(row4, textvariable=self.var_variant,
+                                        values=["standard (CommonI2)",
+                                                "Te4/Tn4 serial (CommonID)"],
+                                        state="readonly", width=24)
+        self.cmb_variant.pack(side="left", padx=6)
+        self.cmb_variant.bind("<<ComboboxSelected>>", self._on_variant_change)
+
+        tk.Label(main, text="how to check: remove the orange shell, look inside the\n"
+                            "battery compartment for a barcode. the first 3 letters of\n"
+                            "the serial number determine your variant (e.g. Te4 or Tn4).",
+                 fg="#555555", justify="left").pack(anchor="w", pady=(2, 0))
 
         self.btn_convert = tk.Button(main, text="convert", width=24,
                                      font=("Segoe UI", 11, "bold"),
@@ -145,6 +153,13 @@ class RavGui:
         if path:
             self.var_outdir.set(path)
             self.auto_out = None
+
+    def _on_variant_change(self, _event=None):
+        variant = self.var_variant.get()
+        if "CommonID" in variant:
+            self.var_key8.set("CommonID")
+        else:
+            self.var_key8.set("CommonI2")
 
     def _open_outdir(self):
         d = self.var_outdir.get()
