@@ -116,7 +116,7 @@ class RavGui:
         self.confirmed_key8 = None  # set after a successful test
         self._testing_key = ""  # which key we're currently testing
 
-        root.title("make .rav files")
+        root.title("RAVage - make .rav files")
         root.resizable(False, False)
 
         self.var_input = tk.StringVar()
@@ -142,7 +142,7 @@ class RavGui:
         self.frame_test = tk.Frame(self.root, padx=14, pady=14)
         self.frame_test.pack(fill="both", expand=True)
 
-        tk.Label(self.frame_test, text="make .rav files",
+        tk.Label(self.frame_test, text="RAVage: make .rav files",
                  font=("Segoe UI", 14, "bold")).pack(anchor="w")
 
         self.lbl_test_status = tk.Label(
@@ -181,7 +181,7 @@ class RavGui:
     def _build_convert_screen(self):
         self.frame_convert = tk.Frame(self.root, padx=14, pady=14)
 
-        tk.Label(self.frame_convert, text="make .rav files",
+        tk.Label(self.frame_convert, text="RAVage: make .rav files",
                  font=("Segoe UI", 14, "bold")).pack(anchor="w")
         self.lbl_pen_info = tk.Label(
             self.frame_convert, text="", fg="#006e2c", justify="left")
@@ -257,9 +257,9 @@ class RavGui:
         self.btn_open.pack(anchor="w", pady=(6, 0))
         self.btn_open.config(state="disabled")
 
-        tk.Label(self.frame_convert, text="copy the .rav to the pen's songs folder "
-                                         "(e.g. E:\\songs\\)",
-                 fg="#555555", justify="left").pack(anchor="w", pady=(10, 0))
+        tk.Label(self.frame_convert, text="save the .rav wherever you like, then copy it to the pen. "
+                                         "if you save it straight to the pen, unplug it when done.",
+                 fg="#555555", justify="left", wraplength=540).pack(anchor="w", pady=(10, 0))
 
         self.btn_retest = tk.Button(self.frame_convert, text="re-test pen variant",
                                     command=self._back_to_test)
@@ -277,8 +277,6 @@ class RavGui:
         else:
             self.row_variant.pack(fill="x", pady=(8, 0))
             self.lbl_pen_info.config(text="")
-        if self.pen_path and not self.var_outdir.get():
-            self.var_outdir.set(_songs_folder(self.pen_path))
 
     def _back_to_test(self):
         self.frame_convert.pack_forget()
@@ -356,7 +354,7 @@ class RavGui:
         self.confirmed_key8 = self._testing_key.encode("ascii")
         self._cleanup_test_rav()
         self.progress_test.stop()
-        self.root.title(f"make .rav files  -  pen: {self.confirmed_key8.decode()}")
+        self.root.title(f"RAVage - pen: {self.confirmed_key8.decode()}")
         self._show_convert_screen()
 
     def _on_no(self):
@@ -449,11 +447,11 @@ class RavGui:
             return
         src = self.var_input.get()
         if not src or not os.path.isfile(src):
-            messagebox.showerror("rav maker", "pick an audio file first")
+            messagebox.showerror("RAVage", "pick an audio file first")
             return
         outdir = self.var_outdir.get()
         if not outdir:
-            messagebox.showerror("rav maker", "pick an output folder")
+            messagebox.showerror("RAVage", "pick an output folder")
             return
         os.makedirs(outdir, exist_ok=True)
         dst = self._result_path()
@@ -466,10 +464,10 @@ class RavGui:
         try:
             key8 = key8_str.encode("ascii")
         except UnicodeEncodeError:
-            messagebox.showerror("rav maker", "key has to be ascii, like CommonI2")
+            messagebox.showerror("RAVage", "key has to be ascii, like CommonI2")
             return
         if len(key8) != 8:
-            messagebox.showerror("rav maker", "needs to be exactly 8 characters (CommonI2 or CommonID)")
+            messagebox.showerror("RAVage", "needs to be exactly 8 characters (CommonI2 or CommonID)")
             return
 
         self.running = True
@@ -585,8 +583,10 @@ class RavGui:
                     self.btn_open.config(state="normal")
                     self.lbl_status.config(text="done!")
                     self.lbl_result.config(
-                        text=f"saved {os.path.basename(dst)} ({size:,} bytes). "
-                             f"copy it to E:\\songs\\ on the pen")
+                        text=f"saved {os.path.basename(dst)} ({size:,} bytes).\n\n"
+                             f"now that you got your .rav file in your destination, copy it to the pen.\n"
+                             f"or if you selected the pen as the destination, you can just unplug the pen "
+                             f"and start playing! have fun!")
                 elif kind == "error":
                     self.progress.stop()
                     self.progress_test.stop()
@@ -595,7 +595,7 @@ class RavGui:
                     self.lbl_status.config(text="failed.")
                     self.lbl_result.config(text="")
                     self.lbl_test_result.config(text="")
-                    messagebox.showerror("rav maker", f"something went wrong:\n\n{ev[1]}")
+                    messagebox.showerror("RAVage", f"something went wrong:\n\n{ev[1]}")
         except queue.Empty:
             pass
         self.root.after(80, self._drain_events)
@@ -612,7 +612,7 @@ class RavGui:
 
     def _on_close(self):
         if self.running:
-            if not messagebox.askyesno("rav maker", "still working. quit anyway?"):
+            if not messagebox.askyesno("RAVage", "still working. quit anyway?"):
                 return
         self._cleanup_test_rav()
         self.root.destroy()
