@@ -1,8 +1,8 @@
-# builds standalone binaries for windows, macos (intel + arm) and linux.
+# builds standalone binaries for windows, macos and linux.
 #
 # pyinstaller cannot cross-compile, so each os/arch builds its own copy on
-# its own runner. every run uploads the binaries as artifacts; pushing a tag
-# (v*) additionally attaches them to a GitHub release.
+# its own runner (or via QEMU for arm32). pushing a tag (v*) additionally
+# attaches them to a GitHub release.
 #
 # on windows the gui becomes ravage.exe (no console window), the cli
 # becomes ravage-cli.exe. on macos the gui becomes ravage.app. on linux
@@ -22,13 +22,30 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
+          # --- windows ---
           - os: windows-latest
-            artifact: ravage-windows
+            artifact: ravage-windows-x86_64
+            arch: x86_64
+          - os: windows-11-arm
+            artifact: ravage-windows-arm64
+            arch: arm64
+          # --- linux ---
           - os: ubuntu-latest
-            artifact: ravage-linux
-          - os: macos-13
+            artifact: ravage-linux-x86_64
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            artifact: ravage-linux-arm64
+            arch: arm64
+          # --- linux arm32 (qemu - no native runner exists) ---
+          - os: ubuntu-latest
+            artifact: ravage-linux-armhf
+            arch: armhf
+            cross: true
+          # --- macos ---
+          - os: macos-15-intel
             artifact: ravage-macos-x86_64
             arch: x86_64
           - os: macos-latest
@@ -38,43 +55,70 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # ---- arm32 qemu build (runs everything inside a container) ----
+      - name: Set up QEMU (ARM32)
+        if: matrix.cross
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+
+      - name: Build + Package in ARM32 container
+        if: matrix.cross
+        run: |
+          docker run --rm --platform linux/arm/v7 \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            python:3.12-slim \
+            bash -c "
+              apt-get update &&
+              apt-get install -y python3-tk ffmpeg &&
+              pip install -r requirements-build.txt &&
+              pyinstaller --noconfirm --clean ravage.spec &&
+              cd dist &&
+              tar -czf ravage-linux-armhf.tar.gz ravage ravage-cli
+            "
+
+      # ---- native builds ----
+      - name: Setup Python
+        if: ${{ !matrix.cross }}
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install tkinter (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !matrix.cross
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-tk
 
       - name: Install build deps
+        if: ${{ !matrix.cross }}
         run: pip install -r requirements-build.txt
 
       - name: Build
+        if: ${{ !matrix.cross }}
         run: pyinstaller --noconfirm --clean ravage.spec
 
       - name: Package binaries
+        if: ${{ !matrix.cross }}
         shell: bash
         run: |
           cd dist
+          ARCH="${{ matrix.arch }}"
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "Compress-Archive -Path ravage.exe, ravage-cli.exe -DestinationPath ravage-windows.zip -Force"
+            powershell -Command "Compress-Archive -Path ravage.exe, ravage-cli.exe -DestinationPath ravage-windows-${ARCH}.zip -Force"
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            ARCH="${{ matrix.arch }}"
             DMG_NAME="ravage-macos-${ARCH}.dmg"
             TAR_NAME="ravage-macos-${ARCH}.tar.gz"
-            # build a real .dmg
             mkdir -p dmg-staging
             cp -R ravage.app dmg-staging/
             cp ravage-cli dmg-staging/
             echo "Drag ravage.app to Applications. ravage-cli is the command-line tool." > dmg-staging/README.txt
             hdiutil create -volname "RAVage (${ARCH})" -srcfolder dmg-staging -ov -format UDZO "$DMG_NAME"
-            # keep tar.gz as well for power users / backwards compat
             tar -czf "$TAR_NAME" -C dmg-staging ravage.app ravage-cli
             rm -rf dmg-staging
           else
-            tar -czf ravage-linux.tar.gz ravage ravage-cli
+            tar -czf "ravage-linux-${ARCH}.tar.gz" ravage ravage-cli
           fi
 
       - name: Upload artifacts
@@ -91,9 +135,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/ravage-windows.zip
+            dist/ravage-windows-x86_64.zip
+            dist/ravage-windows-arm64.zip
             dist/ravage-macos-x86_64.dmg
             dist/ravage-macos-x86_64.tar.gz
             dist/ravage-macos-arm64.dmg
             dist/ravage-macos-arm64.tar.gz
-            dist/ravage-linux.tar.gz
+            dist/ravage-linux-x86_64.tar.gz
+            dist/ravage-linux-arm64.tar.gz
+            dist/ravage-linux-armhf.tar.gz

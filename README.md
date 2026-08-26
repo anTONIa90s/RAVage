@@ -23,9 +23,13 @@ artifacts of the last workflow run):
 
 | OS | What you get | Notes |
 |----|--------------|-------|
-| Windows | `ravage-windows.zip` with `ravage.exe` (GUI) + `ravage-cli.exe` | double-click `ravage.exe` |
-| macOS | `ravage-macos.dmg` with `ravage.app` + `ravage-cli` | unsigned, first launch: right-click → Open |
-| Linux | `ravage-linux.tar.gz` with `ravage` (GUI) + `ravage-cli` | `chmod +x` if needed |
+| Windows x86_64 | `ravage-windows-x86_64.zip` with `ravage.exe` + `ravage-cli.exe` | double-click `ravage.exe` |
+| Windows ARM64 | `ravage-windows-arm64.zip` with `ravage.exe` + `ravage-cli.exe` | Surface Pro, Snapdragon PCs |
+| macOS (Apple Silicon) | `ravage-macos-arm64.dmg` with `ravage.app` + `ravage-cli` | unsigned, right-click → Open |
+| macOS (Intel) | `ravage-macos-x86_64.dmg` with `ravage.app` + `ravage-cli` | same, for older Macs |
+| Linux x86_64 | `ravage-linux-x86_64.tar.gz` with `ravage` + `ravage-cli` | `chmod +x` if needed |
+| Linux ARM64 | `ravage-linux-arm64.tar.gz` with `ravage` + `ravage-cli` | Raspberry Pi 4/5, Rock64, etc. |
+| Linux ARM32 | `ravage-linux-armhf.tar.gz` with `ravage` + `ravage-cli` | Raspberry Pi 1/2/3/Zero (32-bit OS) |
 
 Everything's bundled: ffmpeg, key table, the lot. Builds happen automatically
 on GitHub Actions (`.github/workflows/build.yml`).
