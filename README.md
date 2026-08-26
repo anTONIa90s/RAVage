@@ -24,7 +24,7 @@ artifacts of the last workflow run):
 | OS | What you get | Notes |
 |----|--------------|-------|
 | Windows | `ravage-windows.zip` with `ravage.exe` (GUI) + `ravage-cli.exe` | double-click `ravage.exe` |
-| macOS | `ravage-macos.tar.gz` with `ravage.app` + `ravage-cli` | unsigned, first launch: right-click → Open |
+| macOS | `ravage-macos.dmg` with `ravage.app` + `ravage-cli` | unsigned, first launch: right-click → Open |
 | Linux | `ravage-linux.tar.gz` with `ravage` (GUI) + `ravage-cli` | `chmod +x` if needed |
 
 Everything's bundled: ffmpeg, key table, the lot. Builds happen automatically
@@ -32,11 +32,17 @@ on GitHub Actions (`.github/workflows/build.yml`).
 
 ### Tested hardware
 
-Verified on a real pen: **tiptoi gen 2 (3203L)**. Newer pens use the same
-RAV file family, but their firmware differs. The key table comes from each
-pen's own firmware (`data/keytable.bin` is from `Update3203L.upd`), so if
-you have a gen 3 pen, test it against its own stock files first. The
-decryptor (`rav_cli.py decrypt`) makes that easy.
+Verified on a real pen: **tiptoi gen 2 (3203L)** with `key8 = CommonI2`. Newer pens use the same
+RAV file family, but their firmware differs — one user reported `CommonID`
+instead of `CommonI2`. The key table comes from each pen's own firmware
+(`data/keytable.bin` is from `Update3203L.upd`), so if you have a gen 3 pen,
+test it against its own stock files first. The decryptor makes that easy:
+
+```
+python rav_cli.py decrypt "Old MacDonald Had a Farm.rav"   # prints key8
+python rav_cli.py convert "My Song.mp3" -o "My Song.rav" --key8 CommonID
+# GUI: change the "pen key" field from CommonI2 to CommonID
+```
 
 ## Quick start
 
@@ -59,7 +65,8 @@ copy the result to the pen's music folder (e.g. `E:\songs\My Song.rav`).
 
 ```
 python rav_cli.py convert "My Song.mp3" -o "My Song.rav"
-python rav_cli.py decrypt "Old MacDonald Had a Farm.rav" -o song.ogg   # research
+python rav_cli.py convert "My Song.mp3" -o "My Song.rav" --key8 CommonID   # if your pen uses CommonID
+python rav_cli.py decrypt "Old MacDonald Had a Farm.rav" -o song.ogg        # research, prints key8
 ```
 
 ## How it works
@@ -81,8 +88,8 @@ Ogg page CRCs, so the ciphertext doesn't need valid CRCs.
 ### Key derivation
 
 ```
-key8     = "CommonI2"
-checksum = (sum(key8) + value16) & 0xFFFF          # e.g. 0x78 → 0x035C
+key8     = "CommonI2"  # default; some pens use "CommonID"
+checksum = (sum(key8) + value16) & 0xFFFF          # e.g. 0x78 → 0x035C (CommonI2) / 0x035E (CommonID)
 keystream[i] = TABLE[(checksum + i) & 0xFFF]        # 512 bytes
 ```
 
@@ -166,8 +173,8 @@ keys. It was all sitting in plain sight.
   (`KEY[i] = TABLE[(checksum + i) & 0xFFF]`, note the mask applies to
   `checksum + i` only). Body cipher loop: `0x8DF3B4`.
 - `0x8DF2FC` / `0x8DF340` are init/cleanup only, not key derivation.
-- Stock files decrypt with `key8 = b"CommonI2"` and `value16 = 0x78` on all
-  four factory files; payloads are all Ogg Vorbis (mono 22050 Hz).
+- Stock files decrypt with `key8 = b"CommonI2"` (or `b"CommonID"` on some pens)
+  and `value16 = 0x78` on all factory files; payloads are all Ogg Vorbis (mono 22050 Hz).
 
 ### Regenerating `data/keytable.bin`
 

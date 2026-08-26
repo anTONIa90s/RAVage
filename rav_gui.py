@@ -41,6 +41,7 @@ class RavGui:
         self.var_format = tk.StringVar(value=FORMATS[0][0])
         self.var_quality = tk.StringVar(value=QUALITIES[1][0])
         self.var_sound = tk.StringVar(value=SOUNDS[0][0])
+        self.var_key8 = tk.StringVar(value=ravcrypto.KEY8.decode())
         self.auto_out = None
 
         self._build()
@@ -91,9 +92,17 @@ class RavGui:
         self.cmb_quality.pack(side="left", padx=(4, 14))
         tk.Label(row3, text="sound:").pack(side="left")
         self.cmb_sound = ttk.Combobox(row3, textvariable=self.var_sound,
-                                      values=[s[0] for s in SOUNDS],
-                                      state="readonly", width=20)
+                                       values=[s[0] for s in SOUNDS],
+                                       state="readonly", width=20)
         self.cmb_sound.pack(side="left", padx=4)
+
+        row4 = tk.Frame(main)
+        row4.pack(fill="x", pady=(8, 0))
+        tk.Label(row4, text="pen key:").pack(side="left")
+        self.ent_key8 = tk.Entry(row4, textvariable=self.var_key8, width=12)
+        self.ent_key8.pack(side="left", padx=6)
+        tk.Label(row4, text="(CommonI2 default, some pens use CommonID)", fg="#555555").pack(side="left")
+        # hint: decrypt a stock .rav with cli to see your pen's key: python rav_cli.py decrypt file.rav
 
         self.btn_convert = tk.Button(main, text="convert", width=24,
                                      font=("Segoe UI", 11, "bold"),
@@ -179,6 +188,15 @@ class RavGui:
         quality = next(q[1] for q in QUALITIES if q[0] == self.var_quality.get())
         gain_db, highpass_hz, limiter = \
             next(s[1:] for s in SOUNDS if s[0] == self.var_sound.get())
+        key8_str = self.var_key8.get().strip()
+        try:
+            key8 = key8_str.encode("ascii")
+        except UnicodeEncodeError:
+            messagebox.showerror("rav maker", "pen key must be ascii (e.g. CommonI2).")
+            return
+        if len(key8) != 8:
+            messagebox.showerror("rav maker", "pen key must be exactly 8 characters (e.g. CommonI2 or CommonID).")
+            return
 
         self.running = True
         self.btn_convert.config(state="disabled")
@@ -189,10 +207,10 @@ class RavGui:
 
         threading.Thread(target=self._worker,
                          args=(src, dst, channels, rate, quality,
-                               gain_db, highpass_hz, limiter),
+                               gain_db, highpass_hz, limiter, key8),
                          daemon=True).start()
 
-    def _worker(self, src, dst, channels, rate, quality, gain_db, highpass_hz, limiter):
+    def _worker(self, src, dst, channels, rate, quality, gain_db, highpass_hz, limiter, key8):
         try:
             table = ravcrypto.load_keytable()
             tmp_ogg = dst[:-4] + ".tmp.ogg"
@@ -209,7 +227,7 @@ class RavGui:
             os.remove(tmp_ogg)
 
             self.events.put(("status", "encrypting..."))
-            rav = ravcrypto.encrypt_rav(payload, table)
+            rav = ravcrypto.encrypt_rav(payload, table, key8=key8)
             with open(dst, "wb") as fh:
                 fh.write(rav)
             self.events.put(("done", dst, len(rav)))

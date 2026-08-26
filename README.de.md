@@ -26,7 +26,7 @@ in den Artifacts des letzten Workflow-Laufs):
 | OS | Was du bekommst | Hinweise |
 |----|-----------------|----------|
 | Windows | `ravage-windows.zip` mit `ravage.exe` (GUI) + `ravage-cli.exe` | `ravage.exe` doppelklicken |
-| macOS | `ravage-macos.tar.gz` mit `ravage.app` + `ravage-cli` | nicht signiert, erster Start: Rechtsklick → Öffnen |
+| macOS | `ravage-macos.dmg` mit `ravage.app` + `ravage-cli` | nicht signiert, erster Start: Rechtsklick → Öffnen |
 | Linux | `ravage-linux.tar.gz` mit `ravage` (GUI) + `ravage-cli` | bei Bedarf `chmod +x` |
 
 Alles ist dabei: ffmpeg, Key-Tabelle, der ganze Rest. Gebaut wird automatisch
@@ -34,12 +34,17 @@ von GitHub Actions (`.github/workflows/build.yml`).
 
 ### Getestete Hardware
 
-Auf echter Hardware verifiziert: **tiptoi-Stift Gen 2 (3203L)**. Neuere
-Stifte nutzen dieselbe RAV-Dateifamilie, aber ihre Firmware ist anders. Die
-Key-Tabelle kommt aus der Firmware des jeweiligen Stifts
+Auf echter Hardware verifiziert: **tiptoi-Stift Gen 2 (3203L)** mit `key8 = CommonI2`. Neuere
+Stifte nutzen dieselbe RAV-Dateifamilie, aber ihre Firmware ist anders — ein Nutzer meldete `CommonID`
+statt `CommonI2`. Die Key-Tabelle kommt aus der Firmware des jeweiligen Stifts
 (`data/keytable.bin` stammt aus `Update3203L.upd`), also prüfe einen
-Gen-3-Stift erstmal mit seinen eigenen Original-Dateien. Der Decryptor
-(`rav_cli.py decrypt`) macht das einfach.
+Gen-3-Stift erstmal mit seinen eigenen Original-Dateien. Der Decryptor macht das einfach:
+
+```
+python rav_cli.py decrypt "Old MacDonald Had a Farm.rav"   # zeigt key8 an
+python rav_cli.py convert "Mein Lied.mp3" -o "Mein Lied.rav" --key8 CommonID
+# GUI: Feld "pen key" von CommonI2 auf CommonID ändern
+```
 
 ## Schnellstart
 
@@ -62,7 +67,8 @@ Datei in den Musikordner des Stifts kopieren (z. B. `E:\songs\Mein Lied.rav`).
 
 ```
 python rav_cli.py convert "Mein Lied.mp3" -o "Mein Lied.rav"
-python rav_cli.py decrypt "Old MacDonald Had a Farm.rav" -o song.ogg   # Forschung
+python rav_cli.py convert "Mein Lied.mp3" -o "Mein Lied.rav" --key8 CommonID   # falls dein Stift CommonID nutzt
+python rav_cli.py decrypt "Old MacDonald Had a Farm.rav" -o song.ogg           # Forschung, zeigt key8
 ```
 
 ## So funktioniert's
@@ -85,8 +91,8 @@ Chiffretext braucht also keine gültigen CRCs.
 ### Schlüsselableitung
 
 ```
-key8     = "CommonI2"
-checksum = (sum(key8) + value16) & 0xFFFF          # z. B. 0x78 → 0x035C
+key8     = "CommonI2"  # Standard; manche Stifte nutzen "CommonID"
+checksum = (sum(key8) + value16) & 0xFFFF          # z. B. 0x78 → 0x035C (CommonI2) / 0x035E (CommonID)
 keystream[i] = TABLE[(checksum + i) & 0xFFF]        # 512 Bytes
 ```
 
@@ -179,8 +185,8 @@ geleakten Keys. Alles war offen sichtbar.
   auf `checksum + i`). Body-Chiffre-Loop: `0x8DF3B4`.
 - `0x8DF2FC` / `0x8DF340` machen nur Init/Aufräumen, keine
   Schlüsselableitung.
-- Werksdateien entschlüsseln mit `key8 = b"CommonI2"` und `value16 = 0x78`
-  auf allen vier Original-Dateien; die Payloads sind alle Ogg Vorbis
+- Werksdateien entschlüsseln mit `key8 = b"CommonI2"` (oder `b"CommonID"` bei manchen Stiften)
+  und `value16 = 0x78` auf allen Original-Dateien; die Payloads sind alle Ogg Vorbis
   (mono 22050 Hz).
 
 ### `data/keytable.bin` neu erzeugen

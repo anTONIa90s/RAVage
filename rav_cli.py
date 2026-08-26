@@ -40,7 +40,7 @@ def cmd_convert(args):
         payload = fh.read()
     if not args.keep_ogg:
         os.remove(tmp_ogg)
-    rav = ravcrypto.encrypt_rav(payload, table, value16=args.value16)
+    rav = ravcrypto.encrypt_rav(payload, table, value16=args.value16, key8=args.key8)
     with open(args.output, "wb") as fh:
         fh.write(rav)
     print(f"\nDone in {time.time()-t0:.1f}s -> {args.output} ({len(rav):,} bytes)")
@@ -62,13 +62,23 @@ def cmd_decrypt(args):
     print(f"Decrypted {len(info['plaintext']):,} bytes -> {out}")
 
 
+def _parse_key8(s):
+    try:
+        b = s.encode("ascii")
+    except UnicodeEncodeError:
+        raise argparse.ArgumentTypeError("key8 must be ascii")
+    if len(b) != 8:
+        raise argparse.ArgumentTypeError("key8 must be exactly 8 characters (e.g. CommonI2 or CommonID)")
+    return b
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert any audio to .rav for the Ravensburger tiptoi pen (3203L).")
     parser.add_argument("--table", help="path to keytable.bin (default: bundled)")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("convert", help="audio file → .rav")
+    p = sub.add_parser("convert", help="audio file -> .rav")
     p.add_argument("input", help="input audio file (mp3, wav, m4a, flac, ...)")
     p.add_argument("-o", "--output", required=True, help="output .rav file")
     p.add_argument("--rate", type=int, default=convert.PEN_RATE,
@@ -82,10 +92,12 @@ def main():
                    help="skip the high-pass filter and limiter (original loudness)")
     p.add_argument("--value16", type=lambda s: int(s, 0), default=ravcrypto.DEFAULT_VALUE16,
                    help="header value16 (default 0x78)")
+    p.add_argument("--key8", type=_parse_key8, default=ravcrypto.KEY8,
+                   help="8-char key (default CommonI2; some pens use CommonID - decrypt a stock .rav to see yours)")
     p.add_argument("--keep-ogg", action="store_true", help="keep the intermediate .ogg file")
     p.add_argument("--ogg", help="path for the intermediate .ogg (with --keep-ogg)")
 
-    p = sub.add_parser("decrypt", help=".rav → Ogg Vorbis (research)")
+    p = sub.add_parser("decrypt", help=".rav -> Ogg Vorbis (research)")
     p.add_argument("input", help="input .rav file")
     p.add_argument("-o", "--output", help="output .ogg file (default: alongside input)")
 

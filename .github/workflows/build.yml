@@ -51,7 +51,16 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then
             powershell -Command "Compress-Archive -Path ravage.exe, ravage-cli.exe -DestinationPath ravage-windows.zip -Force"
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            tar -czf ravage-macos.tar.gz ravage.app ravage-cli
+            # build a real .dmg — tar.gz with .app inside isn't user-friendly
+            mkdir -p dmg-staging
+            cp -R ravage.app dmg-staging/
+            cp ravage-cli dmg-staging/
+            # optional readme inside the dmg
+            echo "Drag ravage.app to Applications. ravage-cli is the command-line tool." > dmg-staging/README.txt
+            hdiutil create -volname RAVage -srcfolder dmg-staging -ov -format UDZO ravage-macos.dmg
+            # keep tar.gz as well for power users / backwards compat
+            tar -czf ravage-macos.tar.gz -C dmg-staging ravage.app ravage-cli
+            rm -rf dmg-staging
           else
             tar -czf ravage-linux.tar.gz ravage ravage-cli
           fi
@@ -60,7 +69,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ravage-${{ matrix.os }}
-          path: dist/ravage-*
+          path: |
+            dist/ravage-*
+            dist/*.dmg
           if-no-files-found: error
 
       - name: Attach to release
@@ -69,5 +80,6 @@ jobs:
         with:
           files: |
             dist/ravage-windows.zip
+            dist/ravage-macos.dmg
             dist/ravage-macos.tar.gz
             dist/ravage-linux.tar.gz
