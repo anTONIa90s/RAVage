@@ -17,6 +17,15 @@ ten years ago ([issue #115](https://github.com/entropia/tip-toi-reveng/issues/11
 
 ![GUI](docs/gui.png)
 
+## Checking the pen
+
+Before converting, RAVage writes a tiny `test.rav` file to the pen. Unplug the
+pen, use its player to play the file, and listen for five beeps. The test tries
+both pen variants so the right one gets used for the real file.
+
+![CommonID pen test](docs/gui-test-commonid.png)
+![CommonI2 pen test](docs/gui-test-commoni2.png)
+
 ## Ready-made builds
 
 No Python needed. Grab the right one for your OS from the
