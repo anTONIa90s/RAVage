@@ -2,6 +2,8 @@
 
 [English](README.md) · **Deutsch**
 
+[![Kritisches Update](https://img.shields.io/badge/CRITICAL-UPDATE-red?style=for-the-badge)](https://github.com/Markthegamer108/RAVage/releases/tag/v0.1.2)
+
 Macht aus beliebigen Audiodateien (mp3, wav, m4a, flac, was auch immer) eine
 `.rav`-Datei, die dein Ravensburger tiptoi-Stift (3203L) wirklich abspielt.
 Und entschlüsselt auch Werks-`.rav`-Dateien zurück zu ogg, einfach weil man

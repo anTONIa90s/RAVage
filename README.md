@@ -2,6 +2,8 @@
 
 **English** · [Deutsch](README.de.md)
 
+[![Critical update](https://img.shields.io/badge/CRITICAL-UPDATE-red?style=for-the-badge)](https://github.com/Markthegamer108/RAVage/releases/tag/v0.1.2)
+
 Turns any audio file (mp3, wav, m4a, flac, whatever) into a `.rav` file your
 Ravensburger tiptoi pen (3203L) will actually play. It also decrypts stock
 `.rav` files back to ogg, because why not.
