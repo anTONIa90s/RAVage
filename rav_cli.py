@@ -1,5 +1,6 @@
 """command line converter.
 
+just the cli version of rav_gui.py, for people who prefer terminals.
 examples:
     python rav_cli.py convert "My Song.mp3" -o "My Song.rav"
     python rav_cli.py decrypt "Old MacDonald Had a Farm.rav" -o song.ogg
@@ -24,10 +25,10 @@ def cmd_convert(args):
 
     def progress(sec, total):
         if total:
-            print(f"\rEncoding… {sec:6.1f}s / {total:6.1f}s ({100.0*sec/total:5.1f}%)",
+            print(f"\rEncoding... {sec:6.1f}s / {total:6.1f}s ({100.0*sec/total:5.1f}%)",
                   end="", flush=True)
         else:
-            print(f"\rEncoding… {sec:6.1f}s", end="", flush=True)
+            print(f"\rEncoding... {sec:6.1f}s", end="", flush=True)
 
     t0 = time.time()
     convert.to_ogg(args.input, tmp_ogg, channels=args.channels, rate=args.rate,
@@ -44,7 +45,7 @@ def cmd_convert(args):
     with open(args.output, "wb") as fh:
         fh.write(rav)
     print(f"\nDone in {time.time()-t0:.1f}s -> {args.output} ({len(rav):,} bytes)")
-    print("Copy it to the pen's music folder, e.g. E:\\songs\\")
+    print("Copy it to the pen's songs folder, e.g. E:\\songs\\")
 
 
 def cmd_decrypt(args):
@@ -59,22 +60,23 @@ def cmd_decrypt(args):
         fh.write(info["plaintext"])
     print(f"value16=0x{info['value16']:04X} key8={info['key8']!r} "
           f"checksum=0x{info['checksum']:04X}")
-    print(f"Decrypted {len(info['plaintext']):,} bytes -> {out}")
+    print(f"decrypted {len(info['plaintext']):,} bytes -> {out}")
 
 
 def _parse_key8(s):
+    # key8 has to be exactly 8 ascii chars (CommonI2 or CommonID)
     try:
         b = s.encode("ascii")
     except UnicodeEncodeError:
-        raise argparse.ArgumentTypeError("key8 must be ascii")
+        raise argparse.ArgumentTypeError("key has to be ascii")
     if len(b) != 8:
-        raise argparse.ArgumentTypeError("key8 must be exactly 8 characters (e.g. CommonI2 or CommonID)")
+        raise argparse.ArgumentTypeError("needs to be exactly 8 characters (CommonI2 or CommonID)")
     return b
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert any audio to .rav for the Ravensburger tiptoi pen (3203L).")
+        description="convert any audio to .rav for the Ravensburger tiptoi pen (3203L)")
     parser.add_argument("--table", help="path to keytable.bin (default: bundled)")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -85,21 +87,22 @@ def main():
                    help=f"sample rate (default {convert.PEN_RATE})")
     p.add_argument("--channels", type=int, default=convert.PEN_CHANNELS,
                    help=f"channels, 1=mono (default {convert.PEN_CHANNELS})")
-    p.add_argument("--quality", type=int, default=5, help="Vorbis quality 0-10 (default 5)")
+    p.add_argument("--quality", type=int, default=5, help="vorbis quality 0-10 (default 5)")
     p.add_argument("--gain-db", type=float, default=-4.0,
-                   help="overall gain in dB (default -4.0; 0 = no gain change)")
+                   help="gain in dB (default -4.0, 0 = no change)")
     p.add_argument("--no-tame", action="store_true",
-                   help="skip the high-pass filter and limiter (original loudness)")
+                   help="skip high-pass and limiter (original loudness)")
     p.add_argument("--value16", type=lambda s: int(s, 0), default=ravcrypto.DEFAULT_VALUE16,
                    help="header value16 (default 0x78)")
     p.add_argument("--key8", type=_parse_key8, default=ravcrypto.KEY8,
-                   help="8-char key (default CommonI2; some pens use CommonID - decrypt a stock .rav to see yours)")
+                   help="8-char key (default CommonI2; some pens use CommonID, "
+                        "decrypt a stock .rav to check)")
     p.add_argument("--keep-ogg", action="store_true", help="keep the intermediate .ogg file")
     p.add_argument("--ogg", help="path for the intermediate .ogg (with --keep-ogg)")
 
     p = sub.add_parser("decrypt", help=".rav -> Ogg Vorbis (research)")
     p.add_argument("input", help="input .rav file")
-    p.add_argument("-o", "--output", help="output .ogg file (default: alongside input)")
+    p.add_argument("-o", "--output", help="output .ogg file (default: same name as input)")
 
     args = parser.parse_args()
     (cmd_convert if args.cmd == "convert" else cmd_decrypt)(args)
