@@ -372,6 +372,8 @@ class RavGui:
         else:
             # neither worked, just let them pick manually
             self.progress_test.stop()
+            self.btn_yes.pack_forget()
+            self.btn_no.pack_forget()
             self.lbl_test_status.config(
                 text="couldn't figure out which pen you have.\n"
                      "you can still pick the variant on the next screen.")
