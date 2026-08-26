@@ -67,7 +67,7 @@ jobs:
             python:3.12-slim \
             bash -c "
               apt-get update &&
-              apt-get install -y python3-tk ffmpeg &&
+              apt-get install -y python3-tk ffmpeg build-essential &&
               pip install -r requirements-build.txt &&
               pyinstaller --noconfirm --clean ravage.spec &&
               cd dist &&
