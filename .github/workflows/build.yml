@@ -45,7 +45,7 @@ jobs:
             arch: armhf
             cross: true
           # --- macos ---
-          - os: macos-15-intel
+          - os: macos-13
             artifact: ravage-macos-x86_64
             arch: x86_64
           - os: macos-latest
