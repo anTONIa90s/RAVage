@@ -546,7 +546,8 @@ class RavGui:
                     self.lbl_test_status.config(
                         text=f"found pen at {self.pen_path}\n"
                              f"test.rav ({key_name}) is on the pen now.\n\n"
-                             f"tap test.rav on the pen")
+                             f"unplug the pen, then use the pen's player to play\n"
+                             f"test.rav and listen for 5 beeps.")
                     self.lbl_test_result.config(
                         text="did you hear 5 beeps?")
                     self.btn_yes.pack(side="left", padx=(0, 8))
