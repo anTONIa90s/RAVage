@@ -37,6 +37,8 @@ class RavGui:
         root.resizable(False, False)
 
         self.var_input = tk.StringVar()
+        self.var_inputs = tk.StringVar()
+        self.selected_inputs = ()
         self.var_outdir = tk.StringVar()
         self.var_format = tk.StringVar(value=FORMATS[0][0])
         self.var_quality = tk.StringVar(value=QUALITIES[1][0])
@@ -69,10 +71,18 @@ class RavGui:
 
         row2 = tk.Frame(main)
         row2.pack(fill="x", pady=(6, 0))
-        tk.Label(row2, text="output folder:").pack(side="left")
-        self.ent_outdir = tk.Entry(row2, textvariable=self.var_outdir)
+        tk.Label(row2, text="audio files:").pack(side="left")
+        self.ent_inputs = tk.Entry(row2, textvariable=self.var_inputs,
+                                   state="readonly")
+        self.ent_inputs.pack(side="left", fill="x", expand=True, padx=6)
+        tk.Button(row2, text="browse many...", command=self._pick_inputs).pack(side="left")
+
+        row_outdir = tk.Frame(main)
+        row_outdir.pack(fill="x", pady=(6, 0))
+        tk.Label(row_outdir, text="output folder:").pack(side="left")
+        self.ent_outdir = tk.Entry(row_outdir, textvariable=self.var_outdir)
         self.ent_outdir.pack(side="left", fill="x", expand=True, padx=6)
-        tk.Button(row2, text="browse...", command=self._pick_outdir).pack(side="left")
+        tk.Button(row_outdir, text="browse...", command=self._pick_outdir).pack(side="left")
 
         self.lbl_meta = tk.Label(main, text="", fg="#b06000", justify="left", wraplength=540)
         self.lbl_meta.pack(anchor="w", pady=(4, 0))
@@ -122,6 +132,8 @@ class RavGui:
                        ("all files", "*.*")])
         if not path:
             return
+        self.selected_inputs = ()
+        self.var_inputs.set("")
         self.var_input.set(path)
         stem = os.path.splitext(os.path.basename(path))[0] + ".rav"
         new_auto = os.path.join(os.path.dirname(path), stem)
@@ -130,6 +142,25 @@ class RavGui:
             self.auto_out = new_auto
             self.var_outdir.set(os.path.dirname(new_auto))
         self._check_metadata(path)
+
+    def _pick_inputs(self):
+        paths = filedialog.askopenfilenames(
+            title="choose audio files",
+            filetypes=[("audio files", "*.mp3 *.wav *.m4a *.flac *.ogg *.aac *.wma "
+                                       "*.opus *.mp4 *.avi *.webm"),
+                       ("all files", "*.*")])
+        if not paths:
+            return
+
+        self.selected_inputs = tuple(paths)
+        self.var_input.set("")
+        first_name = os.path.basename(paths[0])
+        self.var_inputs.set(f"{len(paths)} files selected (starting with {first_name})")
+
+        first_dir = os.path.dirname(paths[0])
+        if self.auto_out is None or not self.var_outdir.get():
+            self.auto_out = os.path.join(first_dir, os.path.splitext(first_name)[0] + ".rav")
+            self.var_outdir.set(first_dir)
 
     def _pick_outdir(self):
         path = filedialog.askdirectory(title="choose output folder")
@@ -142,8 +173,8 @@ class RavGui:
         if d and os.path.isdir(d):
             os.startfile(d)
 
-    def _result_path(self):
-        stem = os.path.splitext(os.path.basename(self.var_input.get()))[0] + ".rav"
+    def _result_path(self, src):
+        stem = os.path.splitext(os.path.basename(src))[0] + ".rav"
         return os.path.join(self.var_outdir.get(), stem)
 
     def _check_metadata(self, path):
@@ -164,16 +195,22 @@ class RavGui:
     def _convert(self):
         if self.running:
             return
-        src = self.var_input.get()
-        if not src or not os.path.isfile(src):
-            messagebox.showerror("rav maker", "pick an audio file first.")
+        sources = list(self.selected_inputs) or [self.var_input.get()]
+        if not sources or not sources[0] or any(not os.path.isfile(src) for src in sources):
+            messagebox.showerror("rav maker", "pick one or more audio files first.")
             return
         outdir = self.var_outdir.get()
         if not outdir:
             messagebox.showerror("rav maker", "pick an output folder.")
             return
         os.makedirs(outdir, exist_ok=True)
-        dst = self._result_path()
+        jobs = [(src, self._result_path(src)) for src in sources]
+        destinations = [os.path.normcase(os.path.abspath(dst)) for _, dst in jobs]
+        if len(set(destinations)) != len(destinations):
+            messagebox.showerror(
+                "rav maker", "some selected files would create the same .rav filename.\n"
+                "Rename one of them or convert them separately.")
+            return
 
         channels, rate = next(f[1:] for f in FORMATS if f[0] == self.var_format.get())
         quality = next(q[1] for q in QUALITIES if q[0] == self.var_quality.get())
@@ -188,31 +225,46 @@ class RavGui:
         self.progress.start(12)
 
         threading.Thread(target=self._worker,
-                         args=(src, dst, channels, rate, quality,
+                         args=(jobs, channels, rate, quality,
                                gain_db, highpass_hz, limiter),
                          daemon=True).start()
 
-    def _worker(self, src, dst, channels, rate, quality, gain_db, highpass_hz, limiter):
+    def _worker(self, jobs, channels, rate, quality, gain_db, highpass_hz, limiter):
         try:
             table = ravcrypto.load_keytable()
-            tmp_ogg = dst[:-4] + ".tmp.ogg"
+            results = []
+            failures = []
+            total_jobs = len(jobs)
+            for index, (src, dst) in enumerate(jobs, start=1):
+                tmp_ogg = os.path.splitext(dst)[0] + ".tmp.ogg"
+                try:
+                    self.events.put(("status", f"converting {index}/{total_jobs}: "
+                                               f"{os.path.basename(src)}"))
 
-            def progress(sec, total):
-                self.events.put(("progress", sec, total))
+                    def progress(sec, total):
+                        self.events.put(("progress", index, total_jobs, sec, total))
 
-            convert.to_ogg(src, tmp_ogg, channels=channels, rate=rate,
-                           vorbis_quality=quality, gain_db=gain_db,
-                           highpass_hz=highpass_hz, limiter=limiter,
-                           on_progress=progress)
-            with open(tmp_ogg, "rb") as fh:
-                payload = fh.read()
-            os.remove(tmp_ogg)
+                    convert.to_ogg(src, tmp_ogg, channels=channels, rate=rate,
+                                   vorbis_quality=quality, gain_db=gain_db,
+                                   highpass_hz=highpass_hz, limiter=limiter,
+                                   on_progress=progress)
+                    with open(tmp_ogg, "rb") as fh:
+                        payload = fh.read()
+                    os.remove(tmp_ogg)
 
-            self.events.put(("status", "encrypting..."))
-            rav = ravcrypto.encrypt_rav(payload, table)
-            with open(dst, "wb") as fh:
-                fh.write(rav)
-            self.events.put(("done", dst, len(rav)))
+                    self.events.put(("status", f"encrypting {index}/{total_jobs}: "
+                                               f"{os.path.basename(src)}"))
+                    rav = ravcrypto.encrypt_rav(payload, table)
+                    with open(dst, "wb") as fh:
+                        fh.write(rav)
+                    results.append((dst, len(rav)))
+                except Exception as exc:
+                    failures.append((src, str(exc)))
+                    try:
+                        os.remove(tmp_ogg)
+                    except OSError:
+                        pass
+            self.events.put(("batch_done", results, failures))
         except Exception as exc:
             self.events.put(("error", str(exc)))
 
@@ -222,12 +274,14 @@ class RavGui:
                 ev = self.events.get_nowait()
                 kind = ev[0]
                 if kind == "progress":
-                    sec, total = ev[1], ev[2]
+                    _, file_index, file_count, sec, total = ev
                     if total:
                         self.lbl_status.config(
-                            text=f"converting... {sec:.1f}s / {total:.1f}s")
+                            text=f"converting {file_index}/{file_count}... "
+                                 f"{sec:.1f}s / {total:.1f}s")
                     else:
-                        self.lbl_status.config(text=f"converting... {sec:.1f}s")
+                        self.lbl_status.config(
+                            text=f"converting {file_index}/{file_count}... {sec:.1f}s")
                 elif kind == "status":
                     self.lbl_status.config(text=ev[1])
                 elif kind == "meta":
@@ -241,16 +295,32 @@ class RavGui:
                                  f"stripped automatically.")
                     else:
                         self.lbl_meta.config(text="")
-                elif kind == "done":
-                    _, dst, size = ev
+                elif kind == "batch_done":
+                    _, results, failures = ev
                     self.progress.stop()
                     self.running = False
                     self.btn_convert.config(state="normal")
-                    self.btn_open.config(state="normal")
-                    self.lbl_status.config(text="done!")
-                    self.lbl_result.config(
-                        text=f"saved {os.path.basename(dst)} ({size:,} bytes). "
-                             f"copy it to E:\\songs\\ on the pen.")
+                    self.btn_open.config(state="normal" if results else "disabled")
+                    if failures:
+                        self.lbl_status.config(
+                            text=f"finished with {len(failures)} failed file(s).")
+                        failed_names = ", ".join(os.path.basename(src) for src, _ in failures)
+                        self.lbl_result.config(
+                            text=f"saved {len(results)} of {len(results) + len(failures)} .rav files.\n\n"
+                                 f"could not convert: {failed_names}")
+                        messagebox.showerror(
+                            "rav maker", "some files could not be converted:\n\n" +
+                            "\n".join(f"{os.path.basename(src)}: {error}"
+                                      for src, error in failures))
+                    else:
+                        self.lbl_status.config(text="done!")
+                        if len(results) == 1:
+                            dst, size = results[0]
+                            saved = f"saved {os.path.basename(dst)} ({size:,} bytes)."
+                        else:
+                            saved = f"saved {len(results)} .rav files."
+                        self.lbl_result.config(
+                            text=f"{saved} copy it to E:\\songs\\ on the pen.")
                 elif kind == "error":
                     self.progress.stop()
                     self.running = False
