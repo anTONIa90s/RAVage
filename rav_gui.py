@@ -171,26 +171,40 @@ class RavGui:
         self.btn_no.pack_forget()
 
         self.row_manual_test = tk.Frame(self.frame_test)
-        tk.Button(self.row_manual_test, text="use CommonID",
-                  command=lambda: self._use_key("CommonID")).pack(
-                      side="left", padx=(0, 8))
-        tk.Button(self.row_manual_test, text="use CommonI2",
-                  command=lambda: self._use_key("CommonI2")).pack(side="left")
+        self._manual_key_choice(
+            self.row_manual_test, "use standard key", "CommonI2",
+            "CommonI2: Verified with tiptoi Gen 2 (3203L)").pack(anchor="w")
+        self._manual_key_choice(
+            self.row_manual_test, "use alternate key", "CommonID",
+            "CommonID: Used by some other firmware versions").pack(
+                anchor="w", pady=(4, 0))
 
         self.row_no_pen = tk.Frame(self.frame_test)
         self.btn_retry = tk.Button(self.row_no_pen, text="retry",
                                    command=self._start_pen_scan)
-        self.btn_retry.pack(side="left", padx=(0, 8))
-        tk.Button(self.row_no_pen, text="use CommonID",
-                  command=lambda: self._use_key("CommonID")).pack(
-                      side="left", padx=(0, 8))
-        tk.Button(self.row_no_pen, text="use CommonI2",
-                  command=lambda: self._use_key("CommonI2")).pack(side="left")
+        self.btn_retry.pack(anchor="w")
+        self._manual_key_choice(
+            self.row_no_pen, "use standard key", "CommonI2",
+            "CommonI2: Verified with tiptoi Gen 2 (3203L)").pack(
+                anchor="w", pady=(6, 0))
+        self._manual_key_choice(
+            self.row_no_pen, "use alternate key", "CommonID",
+            "CommonID: Used by some other firmware versions").pack(
+                anchor="w", pady=(4, 0))
 
         self.btn_ok = tk.Button(self.frame_test, text="OK",
                                 command=self._show_convert_screen)
         self.btn_ok.pack(anchor="w", pady=(6, 0))
         self.btn_ok.pack_forget()
+
+    def _manual_key_choice(self, parent, button_text, key_name, description):
+        """Create one manual key choice with its explanatory text."""
+        row = tk.Frame(parent)
+        tk.Button(row, text=button_text,
+                  command=lambda: self._use_key(key_name)).pack(
+                      side="left", padx=(0, 8))
+        tk.Label(row, text=description, fg="#555555").pack(side="left")
+        return row
 
     def _build_convert_screen(self):
         self.frame_convert = tk.Frame(self.root, padx=14, pady=14)
