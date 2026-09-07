@@ -352,10 +352,10 @@ class RavGui:
 
     def _begin_variant_test(self):
         self.lbl_test_status.config(
-            text=f"found pen at {self.pen_path}\ntesting CommonID first...")
+            text=f"found pen at {self.pen_path}\ntesting CommonI2 first...")
         self.progress_test.start(12)
         threading.Thread(target=self._test_variant_worker,
-                         args=("CommonID",), daemon=True).start()
+                         args=("CommonI2",), daemon=True).start()
 
     def _test_variant_worker(self, key_name):
         try:
@@ -410,11 +410,11 @@ class RavGui:
 
     def _on_no(self):
         self._cleanup_test_rav()
-        if self._testing_key == "CommonID":
+        if self._testing_key == "CommonI2":
             # didn't work, try the other one
-            self._testing_key = "CommonI2"
+            self._testing_key = "CommonID"
             self.lbl_test_status.config(
-                text="unplug the pen, then plug it back in\nso we can try CommonI2...")
+                text="unplug the pen, then plug it back in\nso we can try CommonID...")
             self.lbl_test_result.config(text="")
             self.btn_yes.pack_forget()
             self.btn_no.pack_forget()
@@ -654,10 +654,10 @@ class RavGui:
                     if pen:
                         self.pen_path = pen
                         self.lbl_test_status.config(
-                            text=f"found pen at {pen}\ntesting CommonI2...")
+                            text=f"found pen at {pen}\ntesting CommonID...")
                         self.progress_test.start(12)
                         threading.Thread(target=self._test_variant_worker,
-                                         args=("CommonI2",), daemon=True).start()
+                                         args=("CommonID",), daemon=True).start()
                     else:
                         self.progress_test.stop()
                         self.lbl_test_status.config(
