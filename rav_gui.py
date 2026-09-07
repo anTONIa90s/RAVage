@@ -170,10 +170,22 @@ class RavGui:
         self.btn_yes.pack_forget()
         self.btn_no.pack_forget()
 
-        self.btn_retry = tk.Button(self.frame_test, text="retry",
+        self.row_manual_test = tk.Frame(self.frame_test)
+        tk.Button(self.row_manual_test, text="use CommonID",
+                  command=lambda: self._use_key("CommonID")).pack(
+                      side="left", padx=(0, 8))
+        tk.Button(self.row_manual_test, text="use CommonI2",
+                  command=lambda: self._use_key("CommonI2")).pack(side="left")
+
+        self.row_no_pen = tk.Frame(self.frame_test)
+        self.btn_retry = tk.Button(self.row_no_pen, text="retry",
                                    command=self._start_pen_scan)
-        self.btn_retry.pack(anchor="w", pady=(10, 0))
-        self.btn_retry.pack_forget()
+        self.btn_retry.pack(side="left", padx=(0, 8))
+        tk.Button(self.row_no_pen, text="use CommonID",
+                  command=lambda: self._use_key("CommonID")).pack(
+                      side="left", padx=(0, 8))
+        tk.Button(self.row_no_pen, text="use CommonI2",
+                  command=lambda: self._use_key("CommonI2")).pack(side="left")
 
         self.btn_ok = tk.Button(self.frame_test, text="OK",
                                 command=self._show_convert_screen)
@@ -282,8 +294,12 @@ class RavGui:
         self.frame_convert.pack(fill="both", expand=True)
         if self.confirmed_key8:
             self.row_variant.pack_forget()
-            self.lbl_pen_info.config(
-                text=f"pen at {self.pen_path} - {self.confirmed_key8.decode()}")
+            if self.pen_path:
+                self.lbl_pen_info.config(
+                    text=f"pen at {self.pen_path} - {self.confirmed_key8.decode()}")
+            else:
+                self.lbl_pen_info.config(
+                    text=f"using {self.confirmed_key8.decode()} (chosen manually)")
         else:
             self.row_variant.pack(fill="x", pady=(8, 0))
             self.lbl_pen_info.config(text="")
@@ -295,16 +311,19 @@ class RavGui:
         self.lbl_test_result.config(text="")
         self.btn_yes.pack_forget()
         self.btn_no.pack_forget()
-        self.btn_retry.pack_forget()
+        self.row_manual_test.pack_forget()
+        self.row_no_pen.pack_forget()
         self.progress_test.start(12)
         self._start_pen_scan()
 
     # --------------------------------------------------------- pen detection
 
     def _start_pen_scan(self):
-        self.btn_retry.pack_forget()
+        self.pen_path = None
+        self.row_no_pen.pack_forget()
         self.btn_yes.pack_forget()
         self.btn_no.pack_forget()
+        self.row_manual_test.pack_forget()
         self.btn_ok.pack_forget()
         self.lbl_test_status.config(text="looking for your tiptoi...")
         self.lbl_test_result.config(text="")
@@ -354,18 +373,26 @@ class RavGui:
 
     def _cleanup_test_rav(self):
         if self.pen_path:
-            test = os.path.join(self.pen_path, "songs", "test.rav")
-            try:
-                os.remove(test)
-            except OSError:
-                pass
+            songs = os.path.join(self.pen_path, "songs")
+            for filename in ("test.rav", "_test_beeps.tmp.wav", "_test_beeps.tmp.ogg"):
+                try:
+                    os.remove(os.path.join(songs, filename))
+                except OSError:
+                    pass
 
-    def _on_yes(self):
-        self.confirmed_key8 = self._testing_key.encode("ascii")
+    def _use_key(self, key_name):
+        """Accept a tested or manually selected pen key and leave test mode."""
+        self.confirmed_key8 = key_name.encode("ascii")
+        self.var_key8.set(key_name)
+        self.var_variant.set("Te4/Tn4 serial (CommonID)" if key_name == "CommonID"
+                             else "standard (CommonI2)")
         self._cleanup_test_rav()
         self.progress_test.stop()
-        self.root.title(f"RAVage - pen: {self.confirmed_key8.decode()}")
+        self.root.title(f"RAVage - pen: {key_name}")
         self._show_convert_screen()
+
+    def _on_yes(self):
+        self._use_key(self._testing_key)
 
     def _on_no(self):
         self._cleanup_test_rav()
@@ -377,6 +404,7 @@ class RavGui:
             self.lbl_test_result.config(text="")
             self.btn_yes.pack_forget()
             self.btn_no.pack_forget()
+            self.row_manual_test.pack_forget()
             self.progress_test.start(12)
             threading.Thread(target=self._rescan_for_pen, daemon=True).start()
         else:
@@ -592,7 +620,7 @@ class RavGui:
                         self.lbl_test_status.config(
                             text="couldn't find a tiptoi pen.\n"
                                  "plug it in and hit retry")
-                        self.btn_retry.pack(anchor="w", pady=(10, 0))
+                        self.row_no_pen.pack(anchor="w", pady=(10, 0))
                 elif kind == "variant_test_ready":
                     self.progress_test.stop()
                     key_name = ev[1]
@@ -606,6 +634,7 @@ class RavGui:
                         text="did you hear 5 beeps?")
                     self.btn_yes.pack(side="left", padx=(0, 8))
                     self.btn_no.pack(side="left")
+                    self.row_manual_test.pack(anchor="w", pady=(6, 0))
                 elif kind == "pen_found_for_test2":
                     pen = ev[1]
                     if pen:
@@ -619,7 +648,7 @@ class RavGui:
                         self.progress_test.stop()
                         self.lbl_test_status.config(
                             text="pen not found.\nplug it in and hit retry")
-                        self.btn_retry.pack(anchor="w", pady=(10, 0))
+                        self.row_no_pen.pack(anchor="w", pady=(10, 0))
                 elif kind == "meta":
                     _, path, is_yt, hits = ev
                     if path != self.var_input.get():
